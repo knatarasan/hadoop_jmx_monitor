@@ -6,7 +6,10 @@ db_dir=db
 poll_id=poll_id_`date +%Y_%m_%d_%H_%M_%S`
 
 log_file=${log_dir}/app_log_${poll_id}.log
-dn_report_file=${report_dir}/dn_report_${poll_id}.csv
+# dn_report_file=${report_dir}/dn_report_${poll_id}.csv
+dn_report_file=${report_dir}/dn_report_poll_id_2019_05_06_13_14_42.csv
+
+
 
 echo "main starts here"
 
@@ -35,16 +38,19 @@ fi
 
 ##############################################  DN ######################################################
 
+
 prep_dn_columns(){
   dn_metrics_list=`cat config/dn_metrics_config`
-  dn_column_list="HostName,poll_id,"
+  dn_column_list="HostName poll_id "
 
   #set up column names
   for i in $dn_metrics_list;do
-    dn_column_list="${dn_column_list}${i},"
+    dn_column_list="${dn_column_list} ${i}"
   done
 
-  dn_column_list=${dn_column_list%?}
+
+  dn_column_arr=($dn_column_list)
+  # dn_column_list=${dn_column_list%?}
 
 }
 
@@ -52,7 +58,7 @@ prep_dn_columns(){
 
 poll_dn_jmx(){
 
-  echo $dn_column_list>${dn_report_file}
+  # echo $dn_column_list>${dn_report_file}
   #initialize row values
   row=""
 
@@ -83,16 +89,42 @@ load_into_db(){
 
   daily_tbl="create table ${dn_table} ("
 
-  for col in ${dn_column_list};do
-    daily_tbl="${daily_tbl} ${col} TEXT"
+
+  # for col in ${dn_column_list};do
+  #   daily_tbl="${daily_tbl} ${col} TEXT,"
+  # done
+
+
+  echo "Array starts "
+
+  length=${#dn_column_arr[@]}
+  current=0
+
+  for col in "${dn_column_arr[@]}"; do
+    current=$((current + 1))
+
+    if [[ "$current" -eq "$length" ]]; then
+       # echo "$VALUE is the last"
+       daily_tbl="${daily_tbl} ${col} TEXT"
+    else
+       # echo "$VALUE"
+       daily_tbl="${daily_tbl} ${col} TEXT,"
+    fi
   done
+
+  echo "Array ends "
+
+
   daily_tbl="${daily_tbl} );"
 
 
   sqlite3 db/dn_jmx.db  "${daily_tbl}"
-  sqlite3 db/dn_jmx.db  ".mode csv"
-  sqlite3 db/dn_jmx.db  ".import report/dn_report_poll_id_2019_05_06_13_14_42.csv ${dn_table}"
-  sqlite3 db/dn_jmx.db  ".schema ${dn_table}";
+  echo "Show table \n"
+  sqlite3 db/dn_jmx.db  ".schema ${dn_table}"
+
+  # echo ".separator ","\n.import report/dn_report_poll_id_2019_05_06_13_14_42.csv dn_report" | sqlite3 db/dn_jmx.db
+  echo ".separator ","\n.import ${dn_report_file} ${dn_table}" | sqlite3 db/dn_jmx.db
+
   sqlite3 db/dn_jmx.db  "select * from ${dn_table}"
 
   # drop db
@@ -104,6 +136,7 @@ load_into_db(){
 
 
 prep_dn_columns
+# echo "#${dn_column_list}#"
 # poll_dn_jmx
 load_into_db
 
