@@ -31,16 +31,13 @@ then
   exit 1
 fi
 
-
-
 ##############################################  DN ######################################################
+dn_metrics_list=`cat config/dn_metrics_config`
+dn_column_list="HostName poll_id "
 
 
 prep_dn_hourly_table(){
   # This hourly table is ddl is derived from metrics list provided from config file
-
-  dn_metrics_list=`cat config/dn_metrics_config`
-  dn_column_list="HostName poll_id "
 
   #derive column names from config file
   for i in $dn_metrics_list;do
@@ -148,30 +145,24 @@ prep_daily_file(){
   echo " agg query is \n: ${aggregate_hourly_table_query}"
   sqlite3 db/dn_jmx.db  "${aggregate_hourly_table_query}"
 
-  echo "\nSelect table dn_daily troubleshoot purpose only :\n"
   echo ".mode csv\n.output ${dn_daily_agg_file}\nSelect * from dn_daily;\n.quit" | sqlite3 db/dn_jmx.db
 
-  sqlite3 db/dn_jmx.db  "select * from dn_daily"
   sqlite3 db/dn_jmx.db  "delete from dn_daily"
 
 }
 
 prep_weekly_file(){
-
   # Read all files under report/daily/* populate dn_daily --> aggregate and load into dn_weekly and
   # upload it to report/weekly/
 
-  echo "\nLET US START\n"
   for daily_file in report/daily/*;do
     echo ".separator ","\n.import ${daily_file} dn_daily" | sqlite3 db/dn_jmx.db
     echo "** file  ##  ${daily_file} ## is loaded "
   done
-  sqlite3 db/dn_jmx.db  "select * from  dn_daily"
-  echo "\nLET US END\n"
 
 
   sqlite3 db/dn_jmx.db  "create table dn_weekly as select * from  dn_daily where 0"
-  echo "\nDDL from Show dn_weekly :"
+
   sqlite3 db/dn_jmx.db  ".schema dn_weekly"
   #connect DB and import report file into daily table
 
@@ -187,13 +178,38 @@ prep_weekly_file(){
 
   echo "\nSelect table dn_weekly troubleshoot purpose only :\n"
   sqlite3 db/dn_jmx.db  "select * from dn_weekly"
-  sqlite3 db/dn_jmx.db  "delete from dn_weekly"
+  # sqlite3 db/dn_jmx.db  "delete from dn_weekly"
 
 }
 
 ########################################## DN ends ####################################################################
 #work on DNs
 #work on NMs
+
+health_check(){
+  # Read current hourly file , compare with weekly avg , if found +/- 30% of weekly average return health red
+
+  sqlite3 db/dn_jmx.db  "create table dn_current as select * from  dn_hourly where 0"
+  echo ".separator ","\n.import ${dn_hourly_report_file} dn_current" | sqlite3 db/dn_jmx.db
+
+  echo "\nselect from current file \n"
+  sqlite3 db/dn_jmx.db  "select * from dn_current"
+  echo "\nselect from dn_weekly\n"
+  sqlite3 db/dn_jmx.db  "select * from dn_weekly"
+
+
+      health_check_query="select cur.HostName "
+      for col in ${dn_metrics_list};do
+        health_check_query="${health_check_query} ,case when ( (cur.${col}-week.${col})/cur.${col} ) >0.3 then \"check ${col} node\" else \"${col} is healthy\" end "
+      done
+      health_check_query="${health_check_query} from dn_current cur inner join dn_weekly week  where cur.HostName=week.HostName;"
+
+  echo "\nhealth check query ${health_check_query}"
+  sqlite3 db/dn_jmx.db  "${health_check_query}"
+
+  # sqlite3 db/dn_jmx.db  "delete from dn_weekly"
+
+}
 
 clean_up(){
   # drop db
@@ -202,10 +218,12 @@ clean_up(){
 }
 
 
-prep_dn_hourly_table
-poll_hourly_dn_jmx
-prep_hourly_file
-prep_daily_file
-prep_weekly_file
+# prep_dn_hourly_table
+# poll_hourly_dn_jmx
+# prep_hourly_file
+# prep_daily_file
+# prep_weekly_file
 
-clean_up
+health_check
+
+# clean_up
