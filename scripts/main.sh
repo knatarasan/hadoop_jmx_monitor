@@ -14,10 +14,9 @@ mkdir -p report/hourly/${date_id}
 log_file=${log_dir}/app_log_${poll_id}.log
 #Send hourly files into folder with name as date
 dn_hourly_report_file=${hourly_report_dir}/${date_id}/dn_report_${poll_id}.csv
+dn_daily_agg_file=${daily_report_dir}/dn_daily_${date_id}.csv
 
 # dn_hourly_report_file=${hourly_report_dir}/dn_report_poll_id_2019_05_06_16_49_11.csv
-
-
 
 echo "main starts here"
 
@@ -62,9 +61,9 @@ prep_dn_hourly_table(){
     elif [[ "$current" -eq 2 ]]; then
        hourly_tbl_ddl="${hourly_tbl_ddl} ${col} TEXT,"    # Second  column with Text datatype
     elif [[ "$current" -eq "$length" ]]; then
-       hourly_tbl_ddl="${hourly_tbl_ddl} ${col} REAL"     # Last column with REAL datatype with no comma
+       hourly_tbl_ddl="${hourly_tbl_ddl} ${col} INT"     # Last column with REAL datatype with no comma
      else
-       hourly_tbl_ddl="${hourly_tbl_ddl} ${col} REAL,"    # Third to rest of the columns with REAL datatype
+       hourly_tbl_ddl="${hourly_tbl_ddl} ${col} INT,"    # Third to rest of the columns with REAL datatype
      fi
   done
 
@@ -95,7 +94,7 @@ poll_hourly_dn_jmx(){
    echo $row>>${dn_hourly_report_file}
 
    row=""
-  # rm tmp_${host_name}
+  rm tmp_${host_name}
   done <config/dn_hosts
 
 }
@@ -122,19 +121,27 @@ load_hourly_table(){
 
 load_daily_table(){
 
-  dn_daily_table=dn_daily
-
   sqlite3 db/dn_jmx.db  "create table dn_daily as select * from  ${dn_hourly_table} where 0"
   echo "\nDDL from Show dn_daily :"
   sqlite3 db/dn_jmx.db  ".schema dn_daily"
   #connect DB and import report file into daily table
-  sqlite3 db/dn_jmx.db  "insert into dn_daily select HostName,poll_id , ,avg(BytesWritten),avg(TotalWriteTime),avg(BytesRead),avg(TotalReadTime),avg(BlocksWritten),avg(BlocksRead),avg(BlocksReplicated),
-avg(BlocksRemoved),avg(VolumeFailures),avg(DatanodeNetworkErrors),avg(DataNodeActiveXceiversCount ) from ${dn_hourly_table} group by HostName;"
+  sqlite3 db/dn_jmx.db "select * from ${dn_hourly_table} where HostName=\"cent7-hdp-1.field.hortonworks.com\";"
 
+    aggregate_hourly_table_query="insert into dn_daily select HostName,substr(poll_id,9,10) as date_id"
+    for col in ${dn_metrics_list};do
+      aggregate_hourly_table_query="${aggregate_hourly_table_query} ,avg(${col})"
+    done
+    aggregate_hourly_table_query="${aggregate_hourly_table_query} from ${dn_hourly_table} group by HostName,substr(poll_id,9,10);"
+
+  echo " agg query is \n: ${aggregate_hourly_table_query}"
+  sqlite3 db/dn_jmx.db  "${aggregate_hourly_table_query}"
 
   echo "\nSelect table dn_daily troubleshoot purpose only :\n"
 
+  echo ".mode csv\n.output ${dn_daily_agg_file}\nSelect * from dn_daily;\n.quit" | sqlite3 db/dn_jmx.db
+
   sqlite3 db/dn_jmx.db  "select * from dn_daily"
+  sqlite3 db/dn_jmx.db  "delete from dn_daily"
 
 }
 ########################################## DN ends ####################################################################
