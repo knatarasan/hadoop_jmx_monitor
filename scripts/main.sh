@@ -18,11 +18,11 @@ mkdir -p report/hourly/${date_id}
 
 log_file=${log_dir}/app_log.log
 missing_hosts=${log_dir}/missing_hosts
+sql_log=${log_dir}/sql_log.sql
 
-rm ${missing_hosts}                                  #   TMP to be removed
-rm ${log_file}                                       #   TMP to be removed
+rm ${missing_hosts} ${log_file} ${sql_log}                                 #   TMP to be removed
+touch ${log_file} ${missing_hosts} ${sql_log}
 
-touch ${log_file} ${missing_hosts}
 
 #Send hourly files into folder with name as date
 dn_hourly_report_file=${hourly_report_dir}/${date_id}/dn_report_${poll_id}.csv
@@ -33,7 +33,7 @@ dn_weekly_agg_file=report/weekly/dn_weekly_${month_id}.csv
 
 
 logg(){
-  echo "`date +%Y_%m_%d_%H_%M_%S` :  $1" >> ${log_file}
+    echo "`date +%Y_%m_%d_%H_%M_%S` :  $1" >> ${log_file}
 }
 
 logg  "main starts here"
@@ -115,14 +115,15 @@ poll_hourly_dn_jmx(){
 
    #grep and populate metrics values , metrics names provided from config file
    for i in ${dn_metrics_list};do
-        row="$row"`grep \"${i}\" tmp_${host_name}|cut -f2 -d ':'`
+     #"head -1" has been added since metric "NumFailedVolumes" had more than one value
+     row="$row"`grep \"${i}\" tmp_${host_name}|head -1|cut -f2 -d ':'`
    done
    row=${row%?}
 
    echo $row>>${dn_hourly_report_file}
 
    row=""
-  rm tmp_${host_name}
+  # rm tmp_${host_name}
   done <config/dn_hosts
 
 }
@@ -133,11 +134,11 @@ prep_hourly_file(){
   # read all hourly files under report/hourly/yyyy_mm_dd which was pulled by poll_hourly_dn_jmx
   # and load into dn_hourly table
 
-  logg  "\nDDL before create table :\n ${hourly_tbl_ddl}"
+
   #connect DB create tabel
-  sqlite3 db/dn_jmx.db  "${hourly_tbl_ddl}" >>${log_file}
-  logg  "\nDDL from Show table :"
-  sqlite3 db/dn_jmx.db  ".schema dn_hourly" >>${log_file}
+  sqlite3 db/dn_jmx.db  "${hourly_tbl_ddl}" >>${sql_log}
+
+  sqlite3 db/dn_jmx.db  ".schema dn_hourly" >>${sql_log}
   #connect DB and import report file into daily table
 
 
@@ -148,8 +149,8 @@ prep_hourly_file(){
   done
 
 
-  logg  "\n # Number of rows on dn_hourly  :\n"
-  sqlite3 db/dn_jmx.db  "select count(*) from dn_hourly"
+  echo  " Number of rows on dn_hourly  : " >>${sql_log}
+  sqlite3 db/dn_jmx.db  "select count(*) from dn_hourly" >>${sql_log}
 
 }
 
@@ -158,8 +159,8 @@ prep_daily_file(){
   # Aggregate across all hourly data and make one daily file and place under report/daily/
 
   sqlite3 db/dn_jmx.db  "create table dn_daily as select * from  dn_hourly where 0"
-  logg  "\nDDL from Show dn_daily :"
-  sqlite3 db/dn_jmx.db  ".schema dn_daily"  >>${log_file}
+
+  sqlite3 db/dn_jmx.db  ".schema dn_daily"   >>${sql_log}
   #connect DB and import report file into daily table
 
     aggregate_hourly_table_query="insert into dn_daily select HostName,substr(poll_id,9,10) as date_id"
@@ -168,12 +169,12 @@ prep_daily_file(){
     done
     aggregate_hourly_table_query="${aggregate_hourly_table_query} from dn_hourly group by HostName,substr(poll_id,9,10);"
 
-  logg  " agg query is \n: ${aggregate_hourly_table_query} \n"
+  echo  "Insert into dn_daily \n: ${aggregate_hourly_table_query} \n" >>${sql_log}
   sqlite3 db/dn_jmx.db  "${aggregate_hourly_table_query}"
 
   echo  ".mode csv\n.output ${dn_daily_agg_file}\nSelect * from dn_daily;\n.quit" | sqlite3 db/dn_jmx.db
 
-  sqlite3 db/dn_jmx.db  "delete from dn_daily"
+  # sqlite3 db/dn_jmx.db  "delete from dn_daily"
 
 }
 
@@ -189,7 +190,7 @@ prep_weekly_file(){
 
   sqlite3 db/dn_jmx.db  "create table dn_weekly as select * from  dn_daily where 0"
 
-  sqlite3 db/dn_jmx.db  ".schema dn_weekly"
+  sqlite3 db/dn_jmx.db  ".schema dn_weekly" >> ${sql_log}
   #connect DB and import report file into daily table
 
     aggregate_weekly_table_query="insert into dn_weekly select HostName,substr(poll_id,1,7) as date_id"
@@ -198,12 +199,12 @@ prep_weekly_file(){
     done
     aggregate_weekly_table_query="${aggregate_weekly_table_query} from dn_daily group by HostName,substr(poll_id,1,7);"
 
-  logg  " agg query is \n: ${aggregate_weekly_table_query}"
+  echo  "Insert into dn_weekly \n: ${aggregate_weekly_table_query}" >>${sql_log}
   sqlite3 db/dn_jmx.db  "${aggregate_weekly_table_query}"
   echo  ".mode csv\n.output ${dn_weekly_agg_file}\nSelect * from dn_weekly;\n.quit" | sqlite3 db/dn_jmx.db
 
-  logg  "\nSelect table dn_weekly troubleshoot purpose only :\n"
-  sqlite3 db/dn_jmx.db  "select * from dn_weekly" >>${log_file}
+
+  # sqlite3 db/dn_jmx.db  "select * from dn_weekly" >>${log_file}
   # sqlite3 db/dn_jmx.db  "delete from dn_weekly"
 
 }
@@ -224,8 +225,8 @@ health_check(){
       done
       health_check_query="${health_check_query} from dn_current cur inner join dn_weekly week  where cur.HostName=week.HostName;"
 
-  logg  "\nhealth check query : \n ${health_check_query}"
-  sqlite3 db/dn_jmx.db  "${health_check_query}" >>${log_file}
+  echo  "\nhealth check query : \n ${health_check_query}"  >>${sql_log}
+  sqlite3 db/dn_jmx.db  "${health_check_query}"  >>${sql_log}
 
   # sqlite3 db/dn_jmx.db  "delete from dn_weekly"
 
@@ -247,6 +248,5 @@ prep_hourly_file
 prep_daily_file
 prep_weekly_file
 health_check
-verbo
-
+# verbo
 # clean_up
