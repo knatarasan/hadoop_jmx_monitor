@@ -14,9 +14,8 @@ date_id=`date +%Y_%m_%d`
 month_id=`date +%Y_%m`
 mkdir -p report/hourly/${date_id}
 
-# log_file=${log_dir}/app_log_${poll_id}.log
+log_file=${log_dir}/app_log_${poll_id}.log
 
-log_file=${log_dir}/app_log.log
 missing_hosts=${log_dir}/missing_hosts
 sql_log=${log_dir}/sql_log.sql
 
@@ -25,11 +24,15 @@ touch ${log_file} ${missing_hosts} ${sql_log}
 
 
 #Send hourly files into folder with name as date
+*****
+# dn_hourly_report_file=${hourly_report_dir}/${date_id}/dn_report_${poll_id}.csv
 dn_hourly_report_file=${hourly_report_dir}/${date_id}/dn_report_${poll_id}.csv
 
 dn_daily_agg_file=report/daily/dn_daily_${date_id}.csv
 dn_weekly_agg_file=report/weekly/dn_weekly_${month_id}.csv
 # dn_hourly_report_file=${hourly_report_dir}/dn_report_poll_id_2019_05_06_16_49_11.csv
+
+
 
 
 logg(){
@@ -38,17 +41,23 @@ logg(){
 
 logg  "main starts here"
 
+
 if [ ! -f config/dn_hosts ]
 then
   logg  "check for file config/dn_hosts with required host names in it "
   exit 1
-fi
+elif [ ! -f config/nm_hosts ]
+then
+  logg  "check for file config/nm_hosts with required host names in it "
+  exit 1
+
 
 ##############################################  DN ######################################################
+*****
 dn_metrics_list=`cat config/dn_metrics_config`
 dn_column_list="HostName poll_id "
 
-
+*****
 prep_dn_hourly_table(){
 
   logg "prep_dn_hourly_table would be executed"
@@ -88,7 +97,7 @@ prep_dn_hourly_table(){
 }
 
 
-
+*****
 poll_hourly_dn_jmx(){
 
   #Hourly files is prepared by polling all DNs for every 30 min interval, metrics collected would be
@@ -123,12 +132,12 @@ poll_hourly_dn_jmx(){
    echo $row>>${dn_hourly_report_file}
 
    row=""
-  # rm tmp_${host_name}
+  rm tmp_${host_name}
   done <config/dn_hosts
 
 }
 
-
+*****
 prep_hourly_file(){
 
   # read all hourly files under report/hourly/yyyy_mm_dd which was pulled by poll_hourly_dn_jmx
@@ -241,12 +250,17 @@ verbo(){
   cat ${log_file}
 }
 
+check_nn(){
+  logg "NN jmx call is made"
+  /usr/bin/python2.7 scripts/parse_nn_jmx.py
+}
 
-prep_dn_hourly_table
-poll_hourly_dn_jmx
-prep_hourly_file
-prep_daily_file
-prep_weekly_file
-health_check
-# verbo
+check_nn
+# prep_dn_hourly_table
+# poll_hourly_dn_jmx
+# prep_hourly_file
+# prep_daily_file
+# prep_weekly_file
+# health_check
+# # verbo
 # clean_up
