@@ -18,29 +18,10 @@ log_file=${log_dir}/app_log_${poll_id}.log
 
 missing_hosts=${log_dir}/missing_hosts
 sql_log=${log_dir}/sql_log.sql
+health_check=${log_dir}/health-check_log_${poll_id}.sql
 
 rm ${missing_hosts} ${log_file} ${sql_log}                                 #   TMP to be removed
-touch ${log_file} ${missing_hosts} ${sql_log}
-
-
-#Send hourly files into folder with name as date
-
-prep_files(){
-  hourly_report_file=${hourly_report_dir}/${date_id}/${node}_report_${poll_id}.csv
-  daily_agg_file=report/daily/${node}_daily_${date_id}.csv
-  weekly_agg_file=report/weekly/${node}_weekly_${month_id}.csv
-
-  metrics_list=`cat config/${node}_metrics_config`
-  column_list="HostName poll_id "
-
-}
-
-
-logg(){
-    echo "`date +%Y_%m_%d_%H_%M_%S` :  $1" >> ${log_file}
-}
-
-logg  "main starts here"
+touch ${log_file} ${missing_hosts} ${sql_log} ${health_check}
 
 
 if [ ! -f config/dn_hosts ]
@@ -61,6 +42,25 @@ then
   exit 1
 fi
 
+
+#Send hourly files into folder with name as date
+
+prep_files(){
+  hourly_report_file=${hourly_report_dir}/${date_id}/${node}_report_${poll_id}.csv
+  daily_agg_file=report/daily/${node}_daily_${date_id}.csv
+  weekly_agg_file=report/weekly/${node}_weekly_${month_id}.csv
+
+  metrics_list=`cat config/${node}_metrics_config`
+  column_list="HostName poll_id "
+
+}
+
+
+logg(){
+    echo "`date +%Y_%m_%d_%H_%M_%S` :  $1" >> ${log_file}
+}
+
+logg  "main starts here"
 
 
 prep_hourly_table(){
@@ -145,7 +145,7 @@ poll_hourly_jmx(){
 prep_hourly_file(){
 
   # read all hourly files under report/hourly/yyyy_mm_dd which was pulled by poll_hourly_jmx
-  # and load into dn_hourly table
+  # and load into hourly table
 
   #connect DB create tabel
   sqlite3 db/dn_jmx.db  "${hourly_tbl_ddl}" >>${sql_log}
@@ -157,7 +157,7 @@ prep_hourly_file(){
 
   for hourly_file in ${hourly_report_dir}/${date_id}/${node}*;do
     echo  ".separator ","\n.import ${hourly_file} ${node}_hourly" | sqlite3 db/dn_jmx.db
-    logg  "** file  ##  ${hourly_file} ## is loaded "
+    logg  "** file  ##  ${hourly_file} ## is inserted into hourly to  aggregate into daily "
   done
 
 
@@ -196,7 +196,7 @@ prep_weekly_file(){
 
   for daily_file in report/daily/${node}*;do
     echo  ".separator ","\n.import ${daily_file} ${node}_daily" | sqlite3 db/dn_jmx.db
-    logg  "** file  ##  ${daily_file} ## is loaded "
+    logg  "** file  ##  ${daily_file} ## is taken for aggregated into weekly  "
   done
 
 
@@ -216,14 +216,8 @@ prep_weekly_file(){
   echo  ".mode csv\n.output ${weekly_agg_file}\nSelect * from ${node}_weekly;\n.quit" | sqlite3 db/dn_jmx.db
 
 
-  # sqlite3 db/dn_jmx.db  "select * from dn_weekly" >>${log_file}
-  # sqlite3 db/dn_jmx.db  "delete from dn_weekly"
-
 }
 
-########################################## DN ends ####################################################################
-#work on DNs
-#work on NMs
 
 health_check(){
   # Read current hourly file , compare with weekly avg , if found +/- 30% of weekly average return health red
@@ -233,12 +227,13 @@ health_check(){
 
       health_check_query="select cur.HostName"
       for col in ${metrics_list};do
-        health_check_query="${health_check_query} ,case when ( (cur.${col}-week.${col})/cur.${col} ) >0.3 then \"${col} :1 ***\" else \"${col} :0\" end"
+        health_check_query="${health_check_query} ,case when ( (cur.${col}-week.${col})/cur.${col} ) >0.3 then \"${col} : Check\" else \"${col} : Good\" end"
       done
       health_check_query="${health_check_query} from ${node}_current cur inner join ${node}_weekly week  where cur.HostName=week.HostName;"
 
-  echo  "\nhealth check query : \n ${health_check_query}"  >>${sql_log}
-  sqlite3 db/dn_jmx.db  "${health_check_query}"  >>${sql_log}
+  echo  "\nhealth check ${node} : \n ${health_check_query}"  >>${sql_log}
+  echo  "\nhealth check ${node} : \n "  >>${health_check}
+  sqlite3 db/dn_jmx.db  "${health_check_query}"  >>${health_check}
 
   # sqlite3 db/dn_jmx.db  "delete from dn_weekly"
 
@@ -260,7 +255,6 @@ check_nn(){
 
 exec_run(){
   echo "Run starts for : ${node}"
-  check_nn
   prep_files
   prep_hourly_table
   poll_hourly_jmx
@@ -270,14 +264,18 @@ exec_run(){
   health_check
 }
 
-# node=dn
-# node_port=50075
-# exec_run
 
+#work on DNs
+node=dn
+node_port=50075
+exec_run
+
+#work on NMs
 node=nm
 node_port=8042
 exec_run
 
+check_nn
 
-verbo
+# verbo
 # clean_up
