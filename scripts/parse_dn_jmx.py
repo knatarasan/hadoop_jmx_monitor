@@ -15,34 +15,47 @@ def readJsonURL(url):
     jsonDict = json.loads(nnjmx)
     return jsonDict
 
-data=readJsonFile('../ref/dn0064.json')
-config=readJsonFile('config/dn_metrics_config.json')
-# data=readJsonURL(url)
+jmx_data=readJsonFile('../ref/dn0064.json')                 # jmx file to be parsed
+config=readJsonFile('config/dn_metrics_config.json')    # config json for columns to be parsed
+# jmx_data=readJsonURL(url)
 
 
 # read metrics --> get keys --> check headertype
-dict=config['metrics'][0]
-lis=dict.get( dict.keys()[0] )
 
-keyname=dict.keys()[0] # eg : Hadoop:service=DataNode,name=DataNodeActivity
+config_metrics=config['metrics']
+config_keyname=config_metrics.keys()[0]
+print config_keyname                    # eg : Hadoop:service=DataNode,name=DataNodeActivity
+config_headertype=config_metrics.get('Hadoop:service=DataNode,name=DataNodeActivity')[0].get('headertype')
+config_columns=config_metrics.get('Hadoop:service=DataNode,name=DataNodeActivity')[1]
+print 'config_columns : ',config_columns
+for columnname,datatype in config_columns.iteritems():
+    print columnname,':',datatype
 
-if(lis[0].get('headertype')=='partial'):
-    for i in data['beans']:
-        if(i.get('name').find(keyname)==0):           # eg => i.get('name') : 'Hadoop:service=DataNode,name=DataNodeActivity-phxhdc19dn0064.phx.paypalinc.com-1019'
-            print i.get('name')
+#continue from here -------------------------------------
+
+print '--------------'
+print config_headertype                 # eg : partial
+
+jmx_key=''
+if(config_headertype=='partial'):
+    for i in jmx_data['beans']:
+        if(i.get('name').find(config_keyname)==0):           # eg => i.get('name') : 'Hadoop:service=DataNode,name=DataNodeActivity-phxhdc19dn0064.phx.paypalinc.com-1019'
+            jmx_key=i.get('name')
 
 
 
-    #     print lis
-    #         for j in lis
-    #             print j
+
+print 'jmx_key :',jmx_key
+
+
+
 
 
     # dn_li=element.get('Hadoop:service=DataNode,name=DataNodeActivity')
 
 
 
-# li=data['beans']
+# li=jmx_data['beans']
 
 # keylist=[]
 # namevalues=[]
