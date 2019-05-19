@@ -18,10 +18,10 @@ log_file=${log_dir}/app_log_${poll_id}.log
 
 missing_hosts=${log_dir}/missing_hosts
 sql_log=${log_dir}/sql_log.sql
-health_check=${log_dir}/health-check_log_${poll_id}.sql
+
 
 rm ${missing_hosts} ${log_file} ${sql_log}                                 #   TMP to be removed
-touch ${log_file} ${missing_hosts} ${sql_log} ${health_check}
+touch ${log_file} ${missing_hosts} ${sql_log}
 
 
 if [ ! -f config/dn_hosts ]
@@ -154,10 +154,16 @@ prep_hourly_file(){
   #connect DB and import report file into daily table
 
 
-
+  echo "About to start hourly load "
   for hourly_file in ${hourly_report_dir}/${date_id}/${node}*;do
     echo  ".separator ","\n.import ${hourly_file} ${node}_hourly" | sqlite3 db/dn_jmx.db
-    logg  "** file  ##  ${hourly_file} ## is inserted into hourly to  aggregate into daily "
+    echo "After hourly load , value of status code : $?"
+      if [ $? -eq 0 ]
+      then
+        logg  "** file  ##  ${hourly_file} ## is inserted into hourly to  aggregate into daily "
+      else
+        echo "File load failed"
+      fi
   done
 
 
@@ -227,13 +233,18 @@ health_check(){
 
       health_check_query="select cur.HostName"
       for col in ${metrics_list};do
-        health_check_query="${health_check_query} ,case when ( (cur.${col}-week.${col})/cur.${col} ) >0.3 then \"${col} : Check\" else \"${col} : Good\" end"
+        health_check_query="${health_check_query} ,case when ( (cur.${col}-week.${col})/cur.${col} ) >0.3 then 1 else 0 end as ${col}"
       done
       health_check_query="${health_check_query} from ${node}_current cur inner join ${node}_weekly week  where cur.HostName=week.HostName;"
 
   echo  "\nhealth check ${node} : \n ${health_check_query}"  >>${sql_log}
-  echo  "\nhealth check ${node} : \n "  >>${health_check}
-  sqlite3 db/dn_jmx.db  "${health_check_query}"  >>${health_check}
+  echo  ".separator ","\n.headers on\n.output ${health_check}\n${health_check_query}" | sqlite3 db/dn_jmx.db
+  health_check=${log_dir}/health-current-${node}-check_log_${poll_id}.sql
+  echo  ".separator ","\n.headers on\n.output ${health_check}\nselect * from ${node}_current;\n.quit" | sqlite3 db/dn_jmx.db
+
+
+  # sqlite3 db/dn_jmx.db  "${health_check_query}"  >${health_check}
+
 
   # sqlite3 db/dn_jmx.db  "delete from dn_weekly"
 
@@ -254,6 +265,7 @@ check_nn(){
 }
 
 exec_run(){
+  health_check=${log_dir}/health-${node}-check_log_${poll_id}.sql
   echo "Run starts for : ${node}"
   prep_files
   prep_hourly_table
@@ -278,4 +290,8 @@ exec_run
 check_nn
 
 # verbo
-# clean_up
+clean_up
+
+
+#yarn node -list|grep RUNNING|cut -d' ' -f1|cut -d':' -f1>config/nm_hosts
+#echo "# of NM hosts : `wc -l config/nm_hosts`"

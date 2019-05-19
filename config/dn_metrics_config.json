@@ -1,0 +1,64 @@
+{
+  "metrics": [
+    {
+      "Hadoop:service=DataNode,name=DataNodeActivity": [
+        {
+          "headername": "name",
+          "headertype": "partial"
+        },
+        {
+          "BytesWritten": "FLOAT",
+          "TotalWriteTime": "FLOAT",
+          "BytesRead": "FLOAT",
+          "TotalReadTime": "FLOAT",
+          "BlocksWritten": "FLOAT",
+          "BlocksRead": "FLOAT",
+          "BlocksReplicated": "FLOAT",
+          "BlocksRemoved": "FLOAT",
+          "VolumeFailures": "FLOAT",
+          "DatanodeNetworkErrors": "FLOAT"
+        }
+      ]
+    },
+    {
+      "Hadoop:service=DataNode,name=FSDatasetState": [
+        {
+          "headername": "name",
+          "headertype": "full"
+        },
+        {
+          "NumFailedVolumes": "FLOAT"
+        }
+      ]
+    },
+    {
+      "Hadoop:service=DataNode,name=DataNodeVolume-": [
+        {
+          "headername": "name",
+          "headertype": "partial"
+        },
+        {
+          "modelerType": "TEXT",
+          "tag.Hostname": "TEXT",
+          "TotalMetadataOperations": "FLOAT",
+          "MetadataOperationRateNumOps": "FLOAT",
+          "MetadataOperationRateAvgTime": "FLOAT",
+          "TotalDataFileIos": "FLOAT",
+          "DataFileIoRateNumOps": "FLOAT",
+          "DataFileIoRateAvgTime": "FLOAT",
+          "FlushIoRateNumOps": "FLOAT",
+          "FlushIoRateAvgTime": "FLOAT",
+          "SyncIoRateNumOps": "FLOAT",
+          "SyncIoRateAvgTime": "FLOAT",
+          "ReadIoRateNumOps": "FLOAT",
+          "ReadIoRateAvgTime": "FLOAT",
+          "WriteIoRateNumOps": "FLOAT",
+          "WriteIoRateAvgTime": "FLOAT",
+          "TotalFileIoErrors": "FLOAT",
+          "FileIoErrorRateNumOps": "FLOAT",
+          "FileIoErrorRateAvgTime": "FLOAT"
+        }
+      ]
+    }
+  ]
+}
