@@ -250,8 +250,11 @@ check_dn(){
   echo "NN jmx call is made"
   python scripts/parse_dn_jmx.py
 
-  hourly_file='report/hourly_dn.csv'
-  echo  ".mode csv\n.output ${hourly_file}\nSelect * from hourly_dn;\n.quit" | sqlite3 db/hadoop_jmx.db
+  dn_hourly_file='report/hourly_dn.csv'
+  nm_hourly_file='report/hourly_nm.csv'
+
+  echo  ".mode csv\n.headers on\n.output ${dn_hourly_file}\nSelect * from hourly_dn;\n.quit" | sqlite3 db/hadoop_jmx.db
+  echo  ".mode csv\n.headers on\n.output ${nm_hourly_file}\nSelect * from hourly_nm;\n.quit" | sqlite3 db/hadoop_jmx.db
 }
 
 

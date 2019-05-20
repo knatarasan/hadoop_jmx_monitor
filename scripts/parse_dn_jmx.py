@@ -4,10 +4,9 @@ import json,urllib2,sqlite3,os,time,sys
 
 
 
-def getDDLStruct(jmx_data):
+def getJmxData(jmx_data,node_type,config,host_name,poll_time):
 
     features=jmx_data['beans']
-
     config_metrics=config['metrics']
 
     table_column_name_dtypes=[]
@@ -73,7 +72,7 @@ def getDDLStruct(jmx_data):
 
 
     #Prepare DDL for hourly_dn
-    hourly_dn_table_ddl='create table if not exists hourly_dn (hostname text,poll_time int,'
+    hourly_dn_table_ddl='create table if not exists hourly_'+node_type+' (hostname text,poll_time int,'
     for i in range(0,len(table_column_name_dtypes)):
         if(i!=len(table_column_name_dtypes)-1):
             hourly_dn_table_ddl=hourly_dn_table_ddl+table_column_name_dtypes[i]+',\n'
@@ -85,7 +84,7 @@ def getDDLStruct(jmx_data):
 
 
     #Prepare insert statement for  hourly_dn
-    hourly_dn_insert='insert into hourly_dn(hostname,poll_time,'
+    hourly_dn_insert='insert into hourly_'+node_type+'(hostname,poll_time,'
 
     #Add columns names
     for i in range(0,len(table_column_name_dtypes)):
@@ -112,7 +111,7 @@ def getDDLStruct(jmx_data):
     hourly_dn_insert=hourly_dn_insert+')'
 
     # print 'ddl :',hourly_dn_table_ddl
-    # print 'insert query :',hourly_dn_insert
+    print 'insert query :',hourly_dn_insert
 
     # if os.path.exists('db/hadoop_jmx.db'):
     #     os.remove('db/hadoop_jmx.db')
@@ -128,16 +127,13 @@ def getDDLStruct(jmx_data):
     conn = sqlite3.connect('db/hadoop_jmx.db')
     c = conn.cursor()
     print 'select query'
-    for row in c.execute('select * from hourly_dn'):
+    for row in c.execute('select * from hourly_'+node_type):
         print row
 
     conn.close()
 
 
 
-poll_time=time.strftime('%Y%m%d%H%M%S')
-host_name=''
-dn_port=50075
 
 def find_nth(haystack, needle, n):
     start = haystack.find(needle)
@@ -158,27 +154,34 @@ def readJsonURL(url):
     jsonDict = json.loads(nnjmx)
     return jsonDict
 
-config=readJsonFile('config/dn_metrics_config.json')    # config json for columns to be parsed
 
 
-f = open('config/dn_hosts', 'r')
-hosts=f.read().splitlines()
+def run_jmx(node_type,port):
 
-url=''
-for l in hosts:
-    host_name=l
-    url='http://'+l+':50075/jmx'
-    print url
-    jmx_data=readJsonURL(url)
-    getDDLStruct(jmx_data)
+    print 'executes :'+node_type
+    poll_time=time.strftime('%Y%m%d%H%M%S')
+
+    f = open('config/'+node_type+'_hosts', 'r')
+    hosts=f.read().splitlines()
+
+    config=readJsonFile('config/'+node_type+'_metrics_config.json')    # config json for columns to be parsed
+
+    url=''
+    for l in hosts:
+        host_name=l
+        url='http://'+l+':'+str(port)+'/jmx'
+        print url
+        jmx_data=readJsonURL(url)
+        getJmxData(jmx_data,node_type,config,host_name,poll_time)
 
 
-# jmx_data=readJsonFile('../ref/dn0482.json')
+run_jmx('nm',8042)
+run_jmx('dn',50075)
 
 
-
-# getDDLStruct()
-# getDDLStruct('../ref/dn0064.json')
+# jmx_data=readJsonFile('../ref/nm_0035.json')
+# getJmxData(jmx_data,node_type)
+# getJmxData('../ref/dn0064.json')
 
 
 

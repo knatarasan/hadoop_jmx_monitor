@@ -1,0 +1,22 @@
+{
+  "metrics": {
+    "Hadoop:service=NodeManager,name=NodeManagerMetrics": [
+      {
+        "headername": "name",
+        "headertype": "full"
+      },
+      {
+        "ContainersLaunched": "INT",
+        "ContainersCompleted" : "INT",
+        "ContainersFailed" : "INT",
+        "ContainersKilled" : "INT",
+        "ContainerLaunchDurationNumOps" : "INT",
+        "ContainerLaunchDurationAvgTime" : "FLOAT",
+        "BadLocalDirs" :  "INT",
+        "GoodLocalDirsDiskUtilizationPerc" : "INT",
+        "GoodLogDirsDiskUtilizationPerc" : "INT"
+
+      }
+    ]
+  }
+}
