@@ -1,31 +1,11 @@
-import json
-import urllib2
-import sys
-import sqlite3
-import os
-
-def readJsonFile(filename):
-    with open(filename) as json_file:
-        jsonDict = json.load(json_file)
-        return jsonDict
-
-
-def readJsonURL(url):
-    response = urllib2.urlopen(url)
-    nnjmx = response.read()
-    jsonDict = json.loads(nnjmx)
-    return jsonDict
-
-
-config=readJsonFile('config/dn_metrics_config.json')    # config json for columns to be parsed
-# jmx_data=readJsonURL(url)
-
-# read metrics --> get keys --> check headertype
+import json,urllib2,sqlite3,os,time,sys
 
 
 
-def getDDLStruct(json_file):
-    jmx_data=readJsonFile(json_file)  # jmx file to be parsed
+
+
+def getDDLStruct(jmx_data):
+
     features=jmx_data['beans']
 
     config_metrics=config['metrics']
@@ -51,8 +31,10 @@ def getDDLStruct(json_file):
                         if( jmx_key.find('Hadoop:service=DataNode,name=DataNodeVolume-') ==0):
 
                             #Prepare column name part
-                            disknum=jmx_key.find('/')
-                            volumename=jmx_key[disknum+1:disknum+9]
+
+                            # carve out volumen name example from the following pick hadoop09
+                            # Hadoop:service=DataNode,name=DataNodeVolume-/hadoop09/hdfs/data
+                            volumename=jmx_key[find_nth(jmx_key,'/',1)  +1 : find_nth(jmx_key,'/',2)]
                             sq_columnname=volumename+'_'+ feature_name+' '+feature_dtype
                             table_column_name_dtypes.append(sq_columnname)
 
@@ -86,12 +68,12 @@ def getDDLStruct(json_file):
                         table_columns_values.append(volume_feature_value)
 
 
-    print 'ddl :',table_column_name_dtypes
+    # print 'ddl :',table_column_name_dtypes
     # print 'col value ',table_columns_values
 
 
     #Prepare DDL for hourly_dn
-    hourly_dn_table_ddl='create table if not exists hourly_dn ('
+    hourly_dn_table_ddl='create table if not exists hourly_dn (hostname text,poll_time int,'
     for i in range(0,len(table_column_name_dtypes)):
         if(i!=len(table_column_name_dtypes)-1):
             hourly_dn_table_ddl=hourly_dn_table_ddl+table_column_name_dtypes[i]+',\n'
@@ -103,7 +85,7 @@ def getDDLStruct(json_file):
 
 
     #Prepare insert statement for  hourly_dn
-    hourly_dn_insert='insert into hourly_dn('
+    hourly_dn_insert='insert into hourly_dn(hostname,poll_time,'
 
     #Add columns names
     for i in range(0,len(table_column_name_dtypes)):
@@ -115,6 +97,11 @@ def getDDLStruct(json_file):
     hourly_dn_insert=hourly_dn_insert+') values('
 
     #Add column values
+
+    #Add hostname and poll_time
+    hourly_dn_insert=hourly_dn_insert+'\''+host_name+'\''+','+poll_time+','
+
+
     for i in range(0,len(table_columns_values)):
         if(i!=len(table_columns_values)-1):
             hourly_dn_insert=hourly_dn_insert+str(table_columns_values[i])+','
@@ -124,7 +111,8 @@ def getDDLStruct(json_file):
 
     hourly_dn_insert=hourly_dn_insert+')'
 
-    print 'insert query :',hourly_dn_insert
+    # print 'ddl :',hourly_dn_table_ddl
+    # print 'insert query :',hourly_dn_insert
 
     # if os.path.exists('db/hadoop_jmx.db'):
     #     os.remove('db/hadoop_jmx.db')
@@ -146,7 +134,52 @@ def getDDLStruct(json_file):
     conn.close()
 
 
-getDDLStruct('../ref/dn0482.json')
-getDDLStruct('../ref/dn0064.json')
+
+poll_time=time.strftime('%Y%m%d%H%M%S')
+host_name=''
+dn_port=50075
+
+def find_nth(haystack, needle, n):
+    start = haystack.find(needle)
+    while start >= 0 and n > 1:
+        start = haystack.find(needle, start+len(needle))
+        n -= 1
+    return start
+
+def readJsonFile(filename):
+    with open(filename) as json_file:
+        jsonDict = json.load(json_file)
+        return jsonDict
+
+
+def readJsonURL(url):
+    response = urllib2.urlopen(url)
+    nnjmx = response.read()
+    jsonDict = json.loads(nnjmx)
+    return jsonDict
+
+config=readJsonFile('config/dn_metrics_config.json')    # config json for columns to be parsed
+
+
+f = open('config/dn_hosts', 'r')
+hosts=f.read().splitlines()
+
+url=''
+for l in hosts:
+    host_name=l
+    url='http://'+l+':50075/jmx'
+    print url
+    jmx_data=readJsonURL(url)
+    getDDLStruct(jmx_data)
+
+
+# jmx_data=readJsonFile('../ref/dn0482.json')
+
+
+
+# getDDLStruct()
+# getDDLStruct('../ref/dn0064.json')
+
+
 
 #https://weknowinc.com/blog/running-multiple-python-versions-mac-osx

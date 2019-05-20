@@ -7,12 +7,11 @@ log_dir=log
 hourly_report_dir=report/hourly
 
 db_dir=db
-mkdir -p log report/weekly report/hourly report/daily db
+mkdir -p log report/ db
 poll_id=poll_id_`date +%Y_%m_%d_%H_%M_%S`
 date_id=`date +%Y_%m_%d`
 # date_id=2019_05_06
 month_id=`date +%Y_%m`
-mkdir -p report/hourly/${date_id}
 
 log_file=${log_dir}/app_log_${poll_id}.log
 
@@ -44,17 +43,6 @@ fi
 
 
 #Send hourly files into folder with name as date
-
-prep_files(){
-  hourly_report_file=${hourly_report_dir}/${date_id}/${node}_report_${poll_id}.csv
-  daily_agg_file=report/daily/${node}_daily_${date_id}.csv
-  weekly_agg_file=report/weekly/${node}_weekly_${month_id}.csv
-
-  metrics_list=`cat config/${node}_metrics_config`
-  column_list="HostName poll_id "
-
-}
-
 
 logg(){
     echo "`date +%Y_%m_%d_%H_%M_%S` :  $1" >> ${log_file}
@@ -242,12 +230,6 @@ health_check(){
   health_check=${log_dir}/health-current-${node}-check_log_${poll_id}.sql
   echo  ".separator ","\n.headers on\n.output ${health_check}\nselect * from ${node}_current;\n.quit" | sqlite3 db/dn_jmx.db
 
-
-  # sqlite3 db/dn_jmx.db  "${health_check_query}"  >${health_check}
-
-
-  # sqlite3 db/dn_jmx.db  "delete from dn_weekly"
-
 }
 
 clean_up(){
@@ -264,16 +246,26 @@ check_nn(){
   /usr/bin/python2.7 scripts/parse_nn_jmx.py
 }
 
+check_dn(){
+  echo "NN jmx call is made"
+  python scripts/parse_dn_jmx.py
+
+  hourly_file='report/hourly_dn.csv'
+  echo  ".mode csv\n.output ${hourly_file}\nSelect * from hourly_dn;\n.quit" | sqlite3 db/hadoop_jmx.db
+}
+
+
 exec_run(){
   health_check=${log_dir}/health-${node}-check_log_${poll_id}.sql
   echo "Run starts for : ${node}"
-  prep_files
-  prep_hourly_table
-  poll_hourly_jmx
-  prep_hourly_file
-  prep_daily_file
-  prep_weekly_file
-  health_check
+  check_dn
+  # prep_files
+  # prep_hourly_table
+  # poll_hourly_jmx
+  # prep_hourly_file
+  # prep_daily_file
+  # prep_weekly_file
+  # health_check
 }
 
 
@@ -283,14 +275,14 @@ node_port=50075
 exec_run
 
 #work on NMs
-node=nm
-node_port=8042
-exec_run
+# node=nm
+# node_port=8042
+# exec_run
 
-check_nn
+# check_nn
 
 # verbo
-clean_up
+# clean_up
 
 
 #yarn node -list|grep RUNNING|cut -d' ' -f1|cut -d':' -f1>config/nm_hosts
