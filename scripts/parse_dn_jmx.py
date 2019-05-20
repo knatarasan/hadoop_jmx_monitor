@@ -1,6 +1,8 @@
 import json
 import urllib2
 import sys
+import sqlite3
+import os
 
 def readJsonFile(filename):
     with open(filename) as json_file:
@@ -24,9 +26,6 @@ features=jmx_data['beans']
 
 # def getJmxData(config_headertype,config_key,config_columns):
     # print 'getJmxData',config_headertype,config_key,config_columns
-
-
-
 
 
 def getDDLStruct():
@@ -56,7 +55,7 @@ def getDDLStruct():
                             table_columns_ddl.append(sq_columnname)
 
                             #Prepare column value part
-                            volume_feature_value={ volumename+'_'+ volume_feature_name : jmx_feature.get( volume_feature_name) }
+                            volume_feature_value=jmx_feature.get( volume_feature_name)
                             table_columns_values.append(volume_feature_value)
 
                             # print 'jmx_key :',jmx_key,' k :',k,' value_from_jmx: ',i.get(k)
@@ -65,8 +64,50 @@ def getDDLStruct():
             print 'to process non partial columns'
 
 
-    print table_columns_ddl
+    # print table_columns_ddl
     print table_columns_values
+
+    #Prepare DDL for hourly_dn
+    hourly_dn_table_ddl='create table hourly_dn('
+    for i in range(0,len(table_columns_ddl)):
+        if(i!=len(table_columns_ddl)-1):
+            hourly_dn_table_ddl=hourly_dn_table_ddl+table_columns_ddl[i]+',\n'
+        else:
+            hourly_dn_table_ddl=hourly_dn_table_ddl+table_columns_ddl[i]
+    hourly_dn_table_ddl=hourly_dn_table_ddl+')'
+
+    # print hourly_dn_table_ddl
+
+
+    #Prepare insert statement for  hourly_dn
+    hourly_dn_insert='insert into hourly_dn values('
+    for i in range(0,len(table_columns_values)):
+        if(i!=len(table_columns_values)-1):
+            hourly_dn_insert=hourly_dn_insert+str(table_columns_values[i])+','
+        else:
+            hourly_dn_insert=hourly_dn_insert+str(table_columns_values[i])
+
+    hourly_dn_insert=hourly_dn_insert+')'
+
+    print hourly_dn_insert
+
+    os.remove('db/hadoop_jmx.db')
+
+    conn = sqlite3.connect('db/hadoop_jmx.db')
+
+    c = conn.cursor()
+    c.execute(hourly_dn_table_ddl)          #create table
+    c.execute(hourly_dn_insert)             #insert into  table
+    conn.commit()
+    conn.close()
+
+    conn = sqlite3.connect('db/hadoop_jmx.db')
+    c = conn.cursor()
+    print 'select query'
+    for row in c.execute('select * from hourly_dn'):
+        print row
+
+    conn.close()
 
 
 
