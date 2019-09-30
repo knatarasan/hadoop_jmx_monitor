@@ -15,7 +15,7 @@ def readJsonURL(url):
     jsonDict = json.loads(nnjmx)
     return jsonDict
 
-# data=readJsonFile('NN2.json')
+# data=readJsonFile('scripts/NN2.json')
 data=readJsonURL(url)
 
 li=data['beans']
@@ -28,5 +28,11 @@ for i in li:
         elif isinstance(i.get('SlowPeersReport') , list ):
             li2=i.get('SlowPeersReport')
 
+# for i in li2:
+    # print(i.get('SlowNode'))
+
+
+f=open('log/SlowNode.txt', 'w')
 for i in li2:
-    print(i.get('SlowNode'))
+    print >> f,(i.get('SlowNode'))
+    # print >> f, 'Filename:', filename     # Python 2.x

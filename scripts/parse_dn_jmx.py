@@ -111,7 +111,7 @@ def getJmxData(jmx_data,node_type,config,host_name,poll_time):
     hourly_dn_insert=hourly_dn_insert+')'
 
     # print 'ddl :',hourly_dn_table_ddl
-    print 'insert query :',hourly_dn_insert
+    # print 'insert query :',hourly_dn_insert
 
     # if os.path.exists('db/hadoop_jmx.db'):
     #     os.remove('db/hadoop_jmx.db')
@@ -126,9 +126,9 @@ def getJmxData(jmx_data,node_type,config,host_name,poll_time):
 
     conn = sqlite3.connect('db/hadoop_jmx.db')
     c = conn.cursor()
-    print 'select query'
-    for row in c.execute('select * from hourly_'+node_type):
-        print row
+    # print 'select query'
+    # for row in c.execute('select * from hourly_'+node_type):
+        # print row
 
     conn.close()
 
@@ -177,6 +177,12 @@ def run_jmx(node_type,port):
 
 run_jmx('nm',8042)
 run_jmx('dn',50075)
+
+
+#Enhancements
+# 1. redirect node list to log file
+# 2. keep a config file for cluster specific params,
+#               DN port , NM port , NN hostname , prep DN host list , prep NM host list
 
 
 # jmx_data=readJsonFile('../ref/nm_0035.json')
