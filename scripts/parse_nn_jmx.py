@@ -16,10 +16,9 @@ def readJsonURL(url):
     jsonDict = json.loads(nnjmx)
     return jsonDict
 
-data=readJsonFile('voyager.jmx.json')
-# data=readJsonURL(url)
+# data=readJsonFile('voyager.jmx.json')
+data=readJsonURL(url)
 
-print(data)
 li=data['beans']
 
 li2=[]
@@ -32,9 +31,9 @@ for i in li:
 
 print('slowNodes')
 # print(li2)
-for i in li2:
-    print('SN ',i.get('SlowNode'))
-    print('RN ',i.get('ReportingNodes'))
+# for i in li2:
+#     print('SN ',i.get('SlowNode'))
+#     print('RN ',i.get('ReportingNodes'))
 
 
 f=open('log/SlowNode.txt', 'w')
