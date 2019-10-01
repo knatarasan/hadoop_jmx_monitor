@@ -2,12 +2,14 @@
 Collect jmx data from all the nodes of a cluster, process and raise alerts
 
 ## Execution
-1. Update following files under config/
+1. Update following files under config/ folder
+
 dn_hosts
 nm_hosts
 nn_hosts
 email_list
 
 2.Trigger following script
+
 sh scripts/main.sh
 
