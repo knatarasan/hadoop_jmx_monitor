@@ -1,8 +1,17 @@
 import json
 import urllib2
-url = "http://cent7-hdp-1.field.hortonworks.com:50070/jmx"
 
-print("url ",url)
+
+nn_hostname=''
+#picks the first line from nn_hosts
+with open('config/nn_hosts') as host_file:
+    #To avoid newline char at the end of line
+    nn_hostname=host_file.read().splitlines()[0]
+
+
+
+url = 'http://'+nn_hostname+':50070/jmx'
+
 
 def readJsonFile(filename):
     with open(filename) as json_file:
@@ -21,25 +30,19 @@ data=readJsonURL(url)
 
 li=data['beans']
 
-li2=[]
+slownodes=[]
 for i in li:
     if( 'SlowPeersReport' in i.keys()):
         if isinstance(i.get('SlowPeersReport') , unicode ):
-            li2=eval(i.get('SlowPeersReport'))
+            slownodes=eval(i.get('SlowPeersReport'))
         elif isinstance(i.get('SlowPeersReport') , list ):
-            li2=i.get('SlowPeersReport')
-
-print('slowNodes')
-# print(li2)
-# for i in li2:
-#     print('SN ',i.get('SlowNode'))
-#     print('RN ',i.get('ReportingNodes'))
+            slownodes=i.get('SlowPeersReport')
 
 
 f=open('log/SlowNode.txt', 'w')
 print >> f,('Voyager has following slow Nodes')
 print >> f,('---------------------------------')
-for i in li2:
+for i in slownodes:
     print >> f,(i.get('SlowNode'))
     # print >> f, 'Filename:', filename     # Python 2.x
 
