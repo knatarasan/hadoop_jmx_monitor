@@ -1,5 +1,5 @@
-import json
-import urllib2
+import json,datetime,urllib2
+
 
 
 nn_hostname=''
@@ -39,8 +39,9 @@ for i in li:
             slownodes=i.get('SlowPeersReport')
 
 
+datetime=datetime.datetime.utcnow()
 f=open('log/SlowNode.txt', 'w')
-print >> f,('Voyager has following slow Nodes')
+print >> f,'Subject:Slow nodes reported by NN :',nn_hostname,' at ',datetime
 print >> f,('---------------------------------')
 for i in slownodes:
     print >> f,(i.get('SlowNode'))
