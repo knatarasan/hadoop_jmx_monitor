@@ -2,6 +2,7 @@ import json
 import urllib2
 url = "http://cent7-hdp-1.field.hortonworks.com:50070/jmx"
 
+print("url ",url)
 
 def readJsonFile(filename):
     with open(filename) as json_file:
@@ -15,9 +16,10 @@ def readJsonURL(url):
     jsonDict = json.loads(nnjmx)
     return jsonDict
 
-# data=readJsonFile('scripts/NN2.json')
-data=readJsonURL(url)
+data=readJsonFile('voyager.jmx.json')
+# data=readJsonURL(url)
 
+print(data)
 li=data['beans']
 
 li2=[]
@@ -28,11 +30,18 @@ for i in li:
         elif isinstance(i.get('SlowPeersReport') , list ):
             li2=i.get('SlowPeersReport')
 
-# for i in li2:
-    # print(i.get('SlowNode'))
+print('slowNodes')
+# print(li2)
+for i in li2:
+    print('SN ',i.get('SlowNode'))
+    print('RN ',i.get('ReportingNodes'))
 
 
 f=open('log/SlowNode.txt', 'w')
+print >> f,('Voyager has following slow Nodes')
+print >> f,('---------------------------------')
 for i in li2:
     print >> f,(i.get('SlowNode'))
     # print >> f, 'Filename:', filename     # Python 2.x
+
+print >> f,('---------------------------------')

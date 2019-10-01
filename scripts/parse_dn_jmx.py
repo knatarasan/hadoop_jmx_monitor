@@ -161,9 +161,12 @@ def run_jmx(node_type,port):
     print 'executes :'+node_type
     poll_time=time.strftime('%Y%m%d%H%M%S')
 
+    #Get list of hosts from
+    #   config/dn_hosts    config/nm_hosts
     f = open('config/'+node_type+'_hosts', 'r')
     hosts=f.read().splitlines()
 
+    #Metrics to be collected would fed from a custom json file
     config=readJsonFile('config/'+node_type+'_metrics_config.json')    # config json for columns to be parsed
 
     url=''
